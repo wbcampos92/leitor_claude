@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leitor Lei Seca</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:           #0b0e14;
+      --surface:      #131720;
+      --surface2:     #1c2030;
+      --border:       #252a3a;
+      --border2:      #303548;
+      --accent:       #f0c040;
+      --accent-dim:   rgba(240,192,64,0.12);
+      --accent-soft:  rgba(240,192,64,0.35);
+      --text:         #ddd8cc;
+      --text-sub:     #8890a0;
+      --link-col:     #4a5068;
+      --spoken-op:    0.32;
+      --skip-col:     rgba(100,110,140,0.45);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 36px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--surface);
+    }
+    .logo {
+      width: 36px; height: 36px;
+      background: var(--accent);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .header-text h1 {
+      font-family: 'Lora', serif;
+      font-size: 18px; font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    .header-text p { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .badge {
+      font-size: 11px; padding: 3px 10px;
+      border: 1px solid var(--border2);
+      border-radius: 20px; color: var(--text-sub);
+    }
+
+    /* toggle lei seca */
+    .toggle-wrap {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; color: var(--text-sub);
+      cursor: pointer; user-select: none;
+    }
+    .toggle-wrap input { display: none; }
+    .toggle-pill {
+      width: 32px; height: 17px; background: var(--border2);
+      border-radius: 9px; position: relative; transition: background .2s;
+      flex-shrink: 0;
+    }
+    .toggle-pill::after {
+      content: ''; position: absolute;
+      width: 11px; height: 11px; background: #fff;
+      border-radius: 50%; top: 3px; left: 3px;
+      transition: transform .2s;
+    }
+    .toggle-wrap input:checked + .toggle-pill { background: var(--accent); }
+    .toggle-wrap input:checked + .toggle-pill::after { transform: translateX(15px); }
+
+    .main {
+      flex: 1;
+      max-width: 860px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 36px 36px 145px;
+    }
+
+    /* DROP */
+    #dropZone {
+      border: 2px dashed var(--border2);
+      border-radius: 18px;
+      padding: 72px 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      background: var(--surface);
+    }
+    #dropZone:hover, #dropZone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+    #dropZone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-icon { font-size: 48px; margin-bottom: 16px; }
+    .drop-title { font-family: 'Lora', serif; font-size: 21px; font-weight: 600; margin-bottom: 8px; }
+    .drop-sub { font-size: 13px; color: var(--text-sub); line-height: 1.6; }
+    .drop-sub strong { color: var(--text); }
+    .drop-formats {
+      display: flex; gap: 10px; justify-content: center; margin-top: 20px;
+    }
+    .fmt-badge {
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 8px; padding: 5px 14px;
+      font-size: 12px; color: var(--text-sub);
+    }
+    .drop-hint {
+      margin-top: 18px;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px; padding: 7px 16px;
+      font-size: 11px; color: var(--text-sub);
+    }
+
+    /* DOC VIEW */
+    #docView { display: none; }
+
+    .doc-topbar {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 16px;
+    }
+    .doc-name {
+      font-family: 'Lora', serif; font-size: 16px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .file-type-tag {
+      font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+      letter-spacing: 0.5px; margin-left: 4px;
+    }
+    .file-type-tag.docx { background: #1a3a5c; color: #60a0e0; }
+    .file-type-tag.pdf  { background: #3a1a1a; color: #e06060; }
+
+    .btn-ghost {
+      font-size: 12px; font-family: 'Inter', sans-serif; color: var(--text-sub);
+      background: none; border: 1px solid var(--border); border-radius: 7px; padding: 6px 14px;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* stats strip */
+    .doc-stats {
+      display: flex; gap: 20px; flex-wrap: wrap; align-items: center;
+      margin-bottom: 14px;
+      padding: 10px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 12px; color: var(--text-sub);
+    }
+    .stat-item { display: flex; align-items: center; gap: 6px; }
+    .stat-val { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+    .stat-sep { color: var(--border2); }
+    .filtered-note {
+      margin-left: auto;
+      font-size: 11px; color: var(--accent);
+      display: none; align-items: center; gap: 5px;
+    }
+    .filtered-note.show { display: flex; }
+
+    .doc-scroll {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 34px 42px;
+      max-height: 52vh;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+    .doc-scroll::-webkit-scrollbar { width: 5px; }
+    .doc-scroll::-webkit-scrollbar-track { background: transparent; }
+    .doc-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+    .para {
+      font-family: 'Lora', serif;
+      font-size: 16px;
+      line-height: 1.85;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding: 7px 12px 7px 14px;
+      border-left: 3px solid transparent;
+      border-radius: 0 8px 8px 0;
+      transition: background .25s, border-color .25s, opacity .25s;
+    }
+    .para.active {
+      background: var(--accent-dim);
+      border-left-color: var(--accent);
+    }
+    .para.spoken { opacity: var(--spoken-op); }
+    .para.heading { font-weight: 600; font-size: 17px; margin-bottom: 8px; margin-top: 6px; }
+
+    /* skipped paragraphs (lei seca filtered) */
+    .para.skipped {
+      opacity: 0.28;
+      font-size: 13px;
+      font-style: italic;
+      color: var(--text-sub);
+      border-left-color: var(--border);
+      padding: 3px 12px 3px 14px;
+      margin-bottom: 6px;
+      pointer-events: none;
+    }
+    .para.skipped::before {
+      content: '⊘ ';
+      font-style: normal;
+      font-size: 11px;
+    }
+
+    .seg-link {
+      color: var(--link-col); text-decoration: none; font-style: italic;
+      font-size: 0.88em; border-bottom: 1px solid var(--link-col); opacity: 0.75;
+    }
+    .seg-link::before { content: '🔗 '; font-style: normal; font-size: 0.8em; }
+
+    .page-divider {
+      display: flex; align-items: center; gap: 12px; margin: 20px 0 8px;
+    }
+    .page-divider-line { flex: 1; height: 1px; background: var(--border); }
+    .page-divider-label { font-size: 11px; color: var(--text-sub); white-space: nowrap; letter-spacing: 0.5px; }
+
+    .legend {
+      display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px;
+      padding: 8px 4px; font-size: 11px; color: var(--text-sub);
+    }
+    .legend-item { display: flex; align-items: center; gap: 7px; }
+    .legend-swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ── CONTROLS BAR ── */
+    #controlsBar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 12px 28px;
+      display: none;
+      align-items: center;
+      gap: 16px;
+      backdrop-filter: blur(8px);
+    }
+    #controlsBar.visible { display: flex; }
+
+    .ctl-btns { display: flex; align-items: center; gap: 8px; }
+    .btn-play {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--accent); border: none; cursor: pointer;
+      color: var(--bg); font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .15s, box-shadow .15s;
+      box-shadow: 0 0 0 0 var(--accent-soft);
+    }
+    .btn-play:hover { transform: scale(1.07); box-shadow: 0 0 0 6px var(--accent-soft); }
+    .btn-play.playing { box-shadow: 0 0 0 5px var(--accent-soft); }
+    .btn-circle {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-sub); font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .btn-circle:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-circle.stop:hover { border-color: #ef4444; color: #ef4444; }
+
+    /* progress */
+    .ctl-progress { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+    .ctl-progress-info {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-sub);
+    }
+    .ctl-bar { height: 3px; background: var(--border2); border-radius: 2px; overflow: hidden; cursor: pointer; }
+    .ctl-fill { height: 100%; background: var(--accent); width: 0%; transition: width .4s ease; }
+
+    /* speed */
+    .ctl-speed { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .ctl-speed-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-sub); }
+    .ctl-speed-row { display: flex; align-items: center; gap: 6px; }
+    .ctl-speed-btn {
+      width: 24px; height: 24px; border-radius: 6px;
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .13s; font-family: 'Inter', sans-serif;
+    }
+    .ctl-speed-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .ctl-speed-val { font-size: 14px; font-weight: 600; color: var(--accent); min-width: 32px; text-align: center; }
+
+    /* time display */
+    .ctl-time { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 100px; }
+    .ctl-time-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-sub); }
+    .ctl-time-row { display: flex; align-items: baseline; gap: 4px; }
+    .ctl-time-main {
+      font-size: 16px; font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent); letter-spacing: -0.3px;
+    }
+    .ctl-time-total { font-size: 11px; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+    .ctl-time-sub { font-size: 10px; color: var(--text-sub); }
+
+    /* voice */
+    .ctl-voice { display: flex; flex-direction: column; gap: 4px; }
+    .ctl-voice-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-sub); }
+    .ctl-voice select {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: 11px; border-radius: 6px; padding: 4px 7px;
+      cursor: pointer; max-width: 150px;
+    }
+    .ctl-voice select:focus { outline: none; border-color: var(--accent); }
+
+    #toast {
+      position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--text); font-size: 13px;
+      padding: 10px 20px; border-radius: 20px;
+      opacity: 0; transition: opacity .3s;
+      pointer-events: none; white-space: nowrap; z-index: 999;
+    }
+    #toast.show { opacity: 1; }
+
+    @media (max-width: 620px) {
+      .main { padding: 18px 14px 130px; }
+      .doc-scroll { padding: 18px 16px; }
+      header { padding: 12px 16px; }
+      .header-text p { display: none; }
+      #controlsBar.visible { padding: 10px 14px; gap: 10px; flex-wrap: wrap; }
+      .ctl-voice { display: none; }
+      .doc-stats { gap: 12px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚖️</div>
+  <div class="header-text">
+    <h1>Leitor Lei Seca</h1>
+    <p>Leitura de leis para concurso — filtra ruídos legislativos automaticamente</p>
+  </div>
+  <div class="header-right">
+    <label class="toggle-wrap" title="Remove trechos de alteração legislativa (Incluído pela Lei, Redação dada pela, etc.)">
+      <input type="checkbox" id="toggleLeiSeca" checked>
+      <div class="toggle-pill"></div>
+      <span>Lei Seca</span>
+    </label>
+    <div class="badge" id="statusBadge">Aguardando arquivo</div>
+  </div>
+</header>
+
+<main class="main">
+
+  <div id="dropZone">
+    <input type="file" id="fileInput" accept=".docx,.pdf">
+    <div class="drop-icon">📜</div>
+    <div class="drop-title">Solte o arquivo da lei aqui</div>
+    <div class="drop-sub">
+      ou clique para selecionar um <strong>.docx</strong> ou <strong>.pdf</strong><br>
+      <small>Notas de alteração legislativa são filtradas automaticamente no modo Lei Seca</small>
+    </div>
+    <div class="drop-formats">
+      <span class="fmt-badge">📝 DOCX</span>
+      <span class="fmt-badge">📕 PDF</span>
+    </div>
+    <div class="drop-hint">
+      <span>💡</span>
+      Filtra: "Incluído pela Lei", "Redação dada pela", "Revogado pela", "(Vide…)" e similares
+    </div>
+  </div>
+
+  <div id="docView">
+    <div class="doc-topbar">
+      <div class="doc-name">
+        <span>📜</span>
+        <span id="docFilename">lei.docx</span>
+      </div>
+      <button class="btn-ghost" onclick="resetApp()">↩ Novo arquivo</button>
+    </div>
+
+    <div class="doc-stats" id="docStats">
+      <div class="stat-item">
+        <span>📖</span>
+        <span id="statWords" class="stat-val">—</span>
+        <span>palavras</span>
+      </div>
+      <div class="stat-sep">·</div>
+      <div class="stat-item">
+        <span>⏱</span>
+        <span id="statTotal" class="stat-val">—</span>
+        <span>duração total</span>
+      </div>
+      <div class="stat-sep">·</div>
+      <div class="stat-item">
+        <span>📑</span>
+        <span id="statParas" class="stat-val">—</span>
+        <span>parágrafos lidos</span>
+      </div>
+      <div class="filtered-note" id="filteredNote">
+        <span>⊘</span>
+        <span id="filteredCount">0</span>
+        <span>trechos filtrados</span>
+      </div>
+    </div>
+
+    <div class="doc-scroll" id="docScroll">
+      <div id="docContent"></div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--accent-dim);border:1px solid var(--accent);"></div>
+        <span>Sendo lido agora</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--border);opacity:.5;"></div>
+        <span>Já lido</span>
+      </div>
+      <div class="legend-item" id="legendSkip" style="display:none">
+        <span style="opacity:.4;font-size:12px;">⊘</span>
+        <span>Trecho filtrado (alteração legislativa)</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="controlsBar">
+  <div class="ctl-btns">
+    <button class="btn-circle stop" id="btnStop" title="Parar e reiniciar">■</button>
+    <button class="btn-circle" id="btnPrev" title="Parágrafo anterior">◀</button>
+    <button class="btn-play" id="btnPlay" title="Reproduzir / Pausar">▶</button>
+    <button class="btn-circle" id="btnNext" title="Próximo parágrafo">▶▶</button>
+  </div>
+
+  <div class="ctl-progress">
+    <div class="ctl-progress-info">
+      <span id="pLabel">Pronto para ler</span>
+      <span id="pCount"></span>
+    </div>
+    <div class="ctl-bar" id="progressBar"><div class="ctl-fill" id="pFill"></div></div>
+  </div>
+
+  <div class="ctl-speed">
+    <div class="ctl-speed-label">Velocidade</div>
+    <div class="ctl-speed-row">
+      <button class="ctl-speed-btn" onclick="changeSpeed(-0.25)">−</button>
+      <div class="ctl-speed-val" id="speedVal">1×</div>
+      <button class="ctl-speed-btn" onclick="changeSpeed(+0.25)">+</button>
+    </div>
+  </div>
+
+  <div class="ctl-time" id="ctlTime">
+    <div class="ctl-time-label" id="timeLabel">Tempo restante</div>
+    <div class="ctl-time-row">
+      <div class="ctl-time-main" id="timeRemain">—</div>
+      <div class="ctl-time-total" id="timeTotal"></div>
+    </div>
+    <div class="ctl-time-sub" id="timeSub"></div>
+  </div>
+
+  <div class="ctl-voice">
+    <div class="ctl-voice-label">Voz</div>
+    <select id="voiceSelect"></select>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════
+let sentences    = [];
+let sentIdx      = -1;
+let isPlaying    = false;
+let speechRate   = 1.0;
+let voices       = [];
+let chosenVoice  = null;
+let leiSecaOn    = true;
+let playStartTime = null;       // Date.now() when current play session started
+let playedSecsBeforePause = 0;  // wall-clock seconds accumulated before current session
+let timerInterval = null;
+
+// Self-calibration: measures actual spoken wpm from real utterance timings
+let calibWords = 0;   // total words spoken (completed utterances)
+let calibSecs  = 0;   // total wall-clock seconds those utterances took
+let uttStartTime = null; // when current utterance began
+
+// ════════════════════════════════════════════════════
+//  LEI SECA FILTER PATTERNS
+//  Removes notes like: (Incluído pela Lei nº 123/2000)
+//  (Redação dada pela Lei nº ...) (Revogado pela MP ...)
+//  (Vide Lei nº ...) (NR) etc.
+// ════════════════════════════════════════════════════
+const FILTER_PATTERNS = [
+  // parenthetical notes (inline or full-line)
+  /\(\s*(incluído[ao]?s?|acrescentado[ao]?s?)\s+pela\s+[^)]{0,120}\)/gi,
+  /\(\s*redação\s+dada\s+pela\s+[^)]{0,120}\)/gi,
+  /\(\s*revogado[ao]?s?\s+pela\s+[^)]{0,120}\)/gi,
+  /\(\s*suprimido[ao]?s?\s+pela\s+[^)]{0,120}\)/gi,
+  /\(\s*alterado[ao]?s?\s+pela\s+[^)]{0,120}\)/gi,
+  /\(\s*com\s+redação\s+[^)]{0,120}\)/gi,
+  /\(\s*vide\s+[^)]{0,120}\)/gi,
+  /\(\s*nr\s*\)/gi,
+  /\(\s*nova\s+redação\s+[^)]{0,120}\)/gi,
+  /\(\s*renumerado[ao]?s?\s+[^)]{0,120}\)/gi,
+  /\(\s*regulamentado[ao]?s?\s+[^)]{0,120}\)/gi,
+  // standalone lines (full paragraph match)
+];
+
+// Returns true if this entire text block should be SKIPPED
+function isLegislativeNoise(text) {
+  const t = text.trim();
+  if (!t) return false;
+  // Full-line patterns (these appear as standalone paragraphs)
+  const fullLinePatterns = [
+    /^(incluído[ao]?s?|acrescentado[ao]?s?)\s+(pela|ao)\s+/i,
+    /^redação\s+dada\s+(pela|ao)\s+/i,
+    /^revogado[ao]?s?\s+(pela|ao)\s+/i,
+    /^(vide|cf\.?)\s+(lei|decreto|mp|medida|art\.?)\s+/i,
+    /^\(?\s*(incluído[ao]?|acrescentado[ao]?|redação\s+dada|revogado[ao]?|suprimido[ao]?|alterado[ao]?|nova\s+redação|nr|vide)\b/i,
+    /^\(?\s*art\.\s*\d+.*?incluído\s+pelo/i,
+    /^—?\s*(incluído|acrescentado|revogado|suprimido|alterado)/i,
+  ];
+  return fullLinePatterns.some(p => p.test(t));
+}
+
+// Strip inline parenthetical legislative notes from text
+function stripInlineNoise(text) {
+  let out = text;
+  for (const pat of FILTER_PATTERNS) {
+    out = out.replace(pat, '');
+  }
+  // clean double spaces
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+// ════════════════════════════════════════════════════
+//  DOM
+// ════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const dropZ     = $('dropZone');
+const fInput    = $('fileInput');
+const docV      = $('docView');
+const docCnt    = $('docContent');
+const docScr    = $('docScroll');
+const ctlBar    = $('controlsBar');
+const btnPlay   = $('btnPlay');
+const btnStop   = $('btnStop');
+const btnPrev   = $('btnPrev');
+const btnNext   = $('btnNext');
+const pFill     = $('pFill');
+const pLabel    = $('pLabel');
+const pCount    = $('pCount');
+const speedV    = $('speedVal');
+const voiceS    = $('voiceSelect');
+const badge     = $('statusBadge');
+const toast     = $('toast');
+const timeRemain = $('timeRemain');
+const timeTotal  = $('timeTotal');
+const timeSub    = $('timeSub');
+const timeLabel  = $('timeLabel');
+const toggleLS   = $('toggleLeiSeca');
+
+toggleLS.addEventListener('change', () => {
+  leiSecaOn = toggleLS.checked;
+  if (sentences.length) rebuildVisual();
+});
+
+// ════════════════════════════════════════════════════
+//  VOICES
+// ════════════════════════════════════════════════════
+function loadVoices() {
+  voices = speechSynthesis.getVoices();
+  voiceS.innerHTML = '';
+  const ptVoices = voices.filter(v => v.lang.startsWith('pt'));
+  const list = ptVoices.length ? ptVoices : voices;
+  list.forEach((v) => {
+    const opt = document.createElement('option');
+    opt.value = voices.indexOf(v);
+    opt.textContent = v.name.replace(/Microsoft |Google /, '') + (v.lang ? ` (${v.lang})` : '');
+    voiceS.appendChild(opt);
+  });
+  const ptBR = voices.find(v => v.lang === 'pt-BR');
+  const ptPT = voices.find(v => v.lang === 'pt-PT' || v.lang.startsWith('pt'));
+  chosenVoice = ptBR || ptPT || (voices.length ? voices[0] : null);
+  if (chosenVoice) {
+    const idx = voices.indexOf(chosenVoice);
+    for (const opt of voiceS.options) {
+      if (parseInt(opt.value) === idx) { opt.selected = true; break; }
+    }
+  }
+}
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+voiceS.addEventListener('change', () => { chosenVoice = voices[parseInt(voiceS.value)] || null; });
+
+// ════════════════════════════════════════════════════
+//  RAW PARAGRAPHS (before filtering)
+//  Each: { rawText, readText, isHeading, isNoise, pid }
+// ════════════════════════════════════════════════════
+let rawParas = [];  // stored so we can toggle filter without re-parsing
+
+// ════════════════════════════════════════════════════
+//  FILE HANDLING
+// ════════════════════════════════════════════════════
+dropZ.addEventListener('dragover', e => { e.preventDefault(); dropZ.classList.add('drag-over'); });
+dropZ.addEventListener('dragleave', () => dropZ.classList.remove('drag-over'));
+dropZ.addEventListener('drop', e => {
+  e.preventDefault(); dropZ.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && (f.name.endsWith('.docx') || f.name.endsWith('.pdf'))) loadFile(f);
+  else showToast('⚠️ Selecione um arquivo .docx ou .pdf');
+});
+fInput.addEventListener('change', e => { e.target.files[0] && loadFile(e.target.files[0]); });
+
+async function loadFile(file) {
+  badge.textContent = 'Processando…';
+  $('docFilename').textContent = file.name;
+
+  const existingTag = document.querySelector('.file-type-tag');
+  if (existingTag) existingTag.remove();
+  const tag = document.createElement('span');
+  const isPDF = file.name.toLowerCase().endsWith('.pdf');
+  tag.className = 'file-type-tag ' + (isPDF ? 'pdf' : 'docx');
+  tag.textContent = isPDF ? 'PDF' : 'DOCX';
+  $('docFilename').after(tag);
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      if (isPDF) await loadPDF(e.target.result);
+      else await loadDOCX(e.target.result);
+      dropZ.style.display = 'none';
+      docV.style.display  = 'block';
+      ctlBar.classList.add('visible');
+      badge.textContent = `${sentences.length} sentenças`;
+      updateStats();
+    } catch(err) {
+      showToast('❌ Erro ao processar o arquivo');
+      badge.textContent = 'Erro'; console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function loadDOCX(arrayBuffer) {
+  const result = await mammoth.convertToHtml({ arrayBuffer });
+  parseHTMLToRawParas(result.value);
+  rebuildVisual();
+}
+
+function parseHTMLToRawParas(html) {
+  const parser = new DOMParser();
+  const dom    = parser.parseFromString(html, 'text/html');
+  rawParas = [];
+  let pid = 0;
+  for (const block of dom.body.children) {
+    const isHeading = /^H[1-6]$/.test(block.tagName);
+    const segs = extractSegs(block);
+    const rawText = segs.map(s => s.text).join('').trim();
+    if (!rawText) continue;
+    rawParas.push({ rawText, segs, isHeading, pid });
+    pid++;
+  }
+}
+
+function extractSegs(node) {
+  const out = [];
+  for (const child of node.childNodes) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      if (child.textContent) out.push({ type: 'text', text: child.textContent });
+    } else if (child.nodeName === 'A') {
+      if (child.textContent.trim()) out.push({ type: 'link', text: child.textContent });
+    } else {
+      out.push(...extractSegs(child));
+    }
+  }
+  return out;
+}
+
+// Rebuild the visual + sentences array from rawParas + current leiSecaOn
+function rebuildVisual() {
+  sentences = [];
+  docCnt.innerHTML = '';
+  let visIdx = 0;
+  let filteredCount = 0;
+
+  for (const para of rawParas) {
+    const readSegs  = para.segs.filter(s => s.type === 'text');
+    let   readText  = readSegs.map(s => s.text).join('').trim();
+
+    // Determine if full paragraph is noise
+    let isNoise = leiSecaOn && isLegislativeNoise(readText);
+
+    // Strip inline noise if not full-noise but lei seca is on
+    let cleanText = readText;
+    if (leiSecaOn && !isNoise) {
+      cleanText = stripInlineNoise(readText);
+    }
+
+    const div = document.createElement('div');
+    div.dataset.pid = para.pid;
+
+    if (isNoise) {
+      div.className = 'para skipped';
+      // Show a short truncated preview
+      const preview = readText.length > 80 ? readText.slice(0, 77) + '…' : readText;
+      div.textContent = preview;
+      filteredCount++;
+    } else {
+      div.className = 'para' + (para.isHeading ? ' heading' : '');
+      for (const seg of para.segs) {
+        const sp = document.createElement('span');
+        if (seg.type === 'link') {
+          sp.className = 'seg-link';
+          sp.textContent = seg.text;
+          sp.title = 'Link — não será lido em voz alta';
+        } else {
+          // If leiSeca, show cleaned text in display too
+          sp.textContent = leiSecaOn ? stripInlineNoise(seg.text) : seg.text;
+        }
+        div.appendChild(sp);
+      }
+      // Build sentences for TTS
+      if (cleanText) {
+        splitSentences(cleanText).forEach(s => {
+          if (s.trim()) sentences.push({ text: s.trim(), pid: para.pid });
+        });
+      }
+      visIdx++;
+    }
+
+    docCnt.appendChild(div);
+  }
+
+  sentIdx = -1;
+  updateUI();
+  updateStats(filteredCount);
+
+  // Show/hide legend item and filtered note
+  $('legendSkip').style.display = (leiSecaOn && filteredCount > 0) ? 'flex' : 'none';
+  const fn = $('filteredNote');
+  if (leiSecaOn && filteredCount > 0) {
+    fn.classList.add('show');
+    $('filteredCount').textContent = filteredCount;
+  } else {
+    fn.classList.remove('show');
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  PDF LOAD
+// ════════════════════════════════════════════════════
+async function loadPDF(arrayBuffer) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  rawParas = [];
+  let pid = 0;
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page        = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const annots      = await page.getAnnotations();
+    const viewport    = page.getViewport({ scale: 1 });
+
+    const linkRects = annots
+      .filter(a => a.subtype === 'Link')
+      .map(a => {
+        const [x1, y1, x2, y2] = a.rect;
+        return { x1: Math.min(x1,x2), y1: viewport.height - Math.max(y1,y2),
+                 x2: Math.max(x1,x2), y2: viewport.height - Math.min(y1,y2) };
+      });
+
+    function isLink(item) {
+      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const ix = tx[4], iy = tx[5];
+      return linkRects.some(r => ix >= r.x1-2 && ix <= r.x2+2 && iy >= r.y1-2 && iy <= r.y2+2);
+    }
+
+    // page divider as fake para (not read, just display)
+    if (pdf.numPages > 1) {
+      rawParas.push({
+        rawText: '', segs: [], isHeading: false, pid: `page-${pageNum}`, isPageDiv: true, pageNum
+      });
+    }
+
+    const lines = [];
+    let curLine = null, lastY = null;
+    for (const item of textContent.items) {
+      if (!item.str) continue;
+      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const y  = Math.round(tx[5]);
+      const link = isLink(item);
+      if (lastY === null || Math.abs(y - lastY) > 4) {
+        curLine = { y, segs: [] }; lines.push(curLine); lastY = y;
+      }
+      curLine.segs.push({ text: item.str, link });
+    }
+
+    const pdfParas = [];
+    let curPara = null, lastLineY = null;
+    for (const line of lines) {
+      if (lastLineY === null || Math.abs(line.y - lastLineY) > 14 * 1.8) {
+        curPara = { segs: [] }; pdfParas.push(curPara);
+      }
+      if (curPara.segs.length) curPara.segs.push({ text: ' ', link: false });
+      curPara.segs.push(...line.segs);
+      lastLineY = line.y;
+    }
+
+    for (const pp of pdfParas) {
+      const readText = pp.segs.filter(s => !s.link).map(s => s.text).join('').trim();
+      if (!readText) continue;
+      // Convert to unified seg format
+      const segs = pp.segs.map(s => ({ type: s.link ? 'link' : 'text', text: s.text }));
+      rawParas.push({ rawText: readText, segs, isHeading: false, pid, isPageDiv: false });
+      pid++;
+    }
+  }
+
+  rebuildVisual();
+}
+
+// ════════════════════════════════════════════════════
+//  SENTENCE SPLIT
+// ════════════════════════════════════════════════════
+function splitSentences(text) {
+  const raw = text.match(/[^.!?;:]+[.!?;:]*\s*/g) || [text];
+  const merged = [];
+  let buf = '';
+  for (const part of raw) {
+    buf += part;
+    if (buf.trim().split(/\s+/).length >= 6 || /[.!?]/.test(part)) {
+      merged.push(buf); buf = '';
+    }
+  }
+  if (buf.trim()) merged.push(buf);
+  return merged;
+}
+
+// ════════════════════════════════════════════════════
+//  TTS PLAYBACK
+// ════════════════════════════════════════════════════
+btnPlay.addEventListener('click', () => isPlaying ? pause() : play());
+btnStop.addEventListener('click', stop);
+btnPrev.addEventListener('click', jumpPrev);
+btnNext.addEventListener('click', jumpNext);
+
+function play() {
+  if (!sentences.length) return;
+  if (sentIdx >= sentences.length - 1) { sentIdx = -1; clearHL(); playedSecsBeforePause = 0; }
+  isPlaying = true;
+  btnPlay.textContent = '⏸';
+  btnPlay.classList.add('playing');
+  playStartTime = Date.now();
+  startTimer();
+  speakNext();
+}
+
+function pause() {
+  speechSynthesis.cancel();
+  isPlaying = false;
+  btnPlay.textContent = '▶';
+  btnPlay.classList.remove('playing');
+  pLabel.textContent = 'Pausado';
+  // accumulate elapsed
+  if (playStartTime) {
+    playedSecsBeforePause += (Date.now() - playStartTime) / 1000;
+    playStartTime = null;
+  }
+  stopTimer();
+  updateTime();
+}
+
+function stop() {
+  speechSynthesis.cancel();
+  isPlaying = false;
+  sentIdx   = -1;
+  btnPlay.textContent = '▶';
+  btnPlay.classList.remove('playing');
+  playedSecsBeforePause = 0;
+  playStartTime = null;
+  stopTimer();
+  clearHL();
+  updateUI();
+}
+
+function jumpPrev() {
+  if (!sentences.length) return;
+  // Jump to start of current paragraph, or previous paragraph
+  const curPid = sentIdx >= 0 ? sentences[sentIdx].pid : null;
+  let targetIdx = sentIdx - 1;
+  // if we're partway through a para, jump to its start
+  if (curPid !== null) {
+    const firstOfCur = sentences.findIndex(s => s.pid === curPid);
+    if (firstOfCur < sentIdx) { targetIdx = firstOfCur; }
+    else {
+      // already at first sentence of para, go to prev para
+      const prevPid = sentIdx > 0 ? sentences[sentIdx - 1].pid : null;
+      if (prevPid !== null) targetIdx = sentences.findIndex(s => s.pid === prevPid);
+    }
+  }
+  if (targetIdx < 0) targetIdx = 0;
+  const wasPlaying = isPlaying;
+  speechSynthesis.cancel();
+  sentIdx = targetIdx - 1;
+  if (wasPlaying) { speakNext(); } else { sentIdx = targetIdx; updateUI(); highlightPara(sentences[sentIdx].pid); }
+}
+
+function jumpNext() {
+  if (!sentences.length) return;
+  const curPid = sentIdx >= 0 ? sentences[sentIdx].pid : null;
+  let targetIdx = sentIdx + 1;
+  if (curPid !== null) {
+    // find first sentence of next paragraph
+    const nextPidIdx = sentences.findIndex((s, i) => i > sentIdx && s.pid !== curPid);
+    if (nextPidIdx !== -1) targetIdx = nextPidIdx;
+  }
+  if (targetIdx >= sentences.length) return;
+  const wasPlaying = isPlaying;
+  speechSynthesis.cancel();
+  sentIdx = targetIdx - 1;
+  if (wasPlaying) { speakNext(); } else { sentIdx = targetIdx; updateUI(); highlightPara(sentences[sentIdx].pid); }
+}
+
+function speakNext() {
+  if (!isPlaying) return;
+  sentIdx++;
+  if (sentIdx >= sentences.length) {
+    isPlaying = false;
+    sentIdx   = sentences.length;
+    btnPlay.textContent = '▶';
+    btnPlay.classList.remove('playing');
+    pLabel.textContent  = '✓ Leitura concluída';
+    pFill.style.width   = '100%';
+    stopTimer();
+    const elapsed = playedSecsBeforePause + (playStartTime ? (Date.now()-playStartTime)/1000 : 0);
+    timeRemain.textContent = '0s';
+    timeTotal.textContent  = `/ ${formatTime(Math.round(elapsed))} lidos`;
+    timeSub.textContent    = '✓ concluído';
+    clearHL();
+    return;
+  }
+  const s = sentences[sentIdx];
+  highlightPara(s.pid);
+  updateUI();
+
+  const utt = new SpeechSynthesisUtterance(s.text);
+  utt.lang  = 'pt-BR';
+  utt.rate  = speechRate;
+  if (chosenVoice) utt.voice = chosenVoice;
+
+  // Calibration: measure actual utterance duration
+  uttStartTime = Date.now();
+
+  utt.onend = () => {
+    if (uttStartTime) {
+      const secsTaken = (Date.now() - uttStartTime) / 1000;
+      const wc = s.text.trim().split(/\s+/).length;
+      if (secsTaken > 0.1) { calibWords += wc; calibSecs += secsTaken; }
+      uttStartTime = null;
+    }
+    if (isPlaying) speakNext();
+  };
+  utt.onerror = e => { uttStartTime = null; if (isPlaying && e.error !== 'interrupted') speakNext(); };
+  speechSynthesis.speak(utt);
+}
+
+let lastPid = -1;
+function highlightPara(pid) {
+  if (lastPid === pid) return;
+  const prev = docCnt.querySelector(`.para[data-pid="${lastPid}"]`);
+  if (prev) { prev.classList.remove('active'); prev.classList.add('spoken'); }
+  const cur = docCnt.querySelector(`.para[data-pid="${pid}"]`);
+  if (cur) {
+    cur.classList.add('active'); cur.classList.remove('spoken');
+    const sTop   = docScr.getBoundingClientRect().top;
+    const eTop   = cur.getBoundingClientRect().top;
+    const offset = eTop - sTop - (docScr.clientHeight / 2) + (cur.offsetHeight / 2);
+    docScr.scrollBy({ top: offset, behavior: 'smooth' });
+  }
+  lastPid = pid;
+}
+
+function clearHL() {
+  lastPid = -1;
+  docCnt.querySelectorAll('.para').forEach(p => p.classList.remove('active', 'spoken'));
+  docScr.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ════════════════════════════════════════════════════
+//  REAL-TIME COUNTDOWN TIMER (self-calibrating)
+// ════════════════════════════════════════════════════
+const WPM_BASE = 140; // fallback before calibration
+
+function wordsIn(sentArray) {
+  return sentArray.reduce((n, s) => n + s.text.trim().split(/\s+/).length, 0);
+}
+
+// Returns actual WPM observed so far, falling back to WPM_BASE * rate
+function effectiveWPM() {
+  if (calibSecs > 1 && calibWords > 10) {
+    return calibWords / calibSecs * 60;
+  }
+  return WPM_BASE * speechRate;
+}
+
+function secsForWords(words) {
+  return Math.round(words / effectiveWPM() * 60);
+}
+
+function formatTime(secs) {
+  if (secs < 0) secs = 0;
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2,'0')}min`;
+  if (m > 0) return `${m}min ${String(s).padStart(2,'0')}s`;
+  return `${s}s`;
+}
+
+function startTimer() {
+  stopTimer();
+  timerInterval = setInterval(() => { if (isPlaying) updateTime(); }, 500);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTime() {
+  if (!sentences.length) { timeRemain.textContent = '—'; timeTotal.textContent = ''; timeSub.textContent = ''; return; }
+
+  const totalWords    = wordsIn(sentences);
+  const remainWords   = wordsIn(sentences.slice(Math.max(0, sentIdx + 1)));
+  const totalSecs     = secsForWords(totalWords);
+
+  if (isPlaying && playStartTime) {
+    // Use remaining word count + calibrated WPM for remaining estimate
+    const remainSecs = secsForWords(remainWords);
+    timeRemain.textContent = formatTime(Math.round(remainSecs));
+    timeTotal.textContent  = `/ ${formatTime(totalSecs)}`;
+    const wpmReal = Math.round(effectiveWPM());
+    timeSub.textContent    = `a ${speechRate}× · ${wpmReal} pal/min`;
+    timeLabel.textContent  = 'Tempo restante';
+  } else if (sentIdx > 0) {
+    const remainSecs = secsForWords(remainWords);
+    timeRemain.textContent = formatTime(Math.round(remainSecs));
+    timeTotal.textContent  = `/ ${formatTime(totalSecs)}`;
+    timeSub.textContent    = `a ${speechRate}×`;
+    timeLabel.textContent  = 'Tempo restante';
+  } else {
+    timeRemain.textContent = formatTime(totalSecs);
+    timeTotal.textContent  = '';
+    timeSub.textContent    = `a ${speechRate}× · ~${totalWords} palavras`;
+    timeLabel.textContent  = 'Duração total';
+  }
+}
+
+function updateUI() {
+  const total = sentences.length;
+  const cur   = Math.max(0, sentIdx + 1);
+  pFill.style.width = total ? (cur / total * 100) + '%' : '0%';
+  pCount.textContent = total ? `${cur} / ${total}` : '';
+  if (!isPlaying && sentIdx < 0) pLabel.textContent = `${total} sentenças prontas`;
+  updateTime();
+}
+
+function updateStats(filteredCount) {
+  if (!sentences.length) return;
+  const totalWords = wordsIn(sentences);
+  $('statWords').textContent = totalWords.toLocaleString('pt-BR');
+  $('statTotal').textContent = formatTime(secsForWords(totalWords));
+  const readParas = new Set(sentences.map(s => s.pid)).size;
+  $('statParas').textContent = readParas;
+}
+
+// ════════════════════════════════════════════════════
+//  SPEED
+// ════════════════════════════════════════════════════
+function changeSpeed(delta) {
+  speechRate = Math.round((Math.min(5, Math.max(0.5, speechRate + delta))) * 4) / 4;
+  speedV.textContent = speechRate + '×';
+  // update stats duration
+  if (sentences.length) $('statTotal').textContent = formatTime(secsForWords(wordsIn(sentences)));
+  updateTime();
+  calibWords = 0; calibSecs = 0; // re-calibrate at new speed
+  if (isPlaying) { speechSynthesis.cancel(); sentIdx--; speakNext(); }
+}
+
+// ════════════════════════════════════════════════════
+//  PROGRESS BAR CLICK TO SEEK
+// ════════════════════════════════════════════════════
+$('progressBar').addEventListener('click', e => {
+  if (!sentences.length) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct  = (e.clientX - rect.left) / rect.width;
+  const target = Math.floor(pct * sentences.length);
+  const wasPlaying = isPlaying;
+  speechSynthesis.cancel();
+  sentIdx = target - 1;
+  if (wasPlaying) speakNext();
+  else { sentIdx = target; updateUI(); if (sentences[sentIdx]) highlightPara(sentences[sentIdx].pid); }
+});
+
+// ════════════════════════════════════════════════════
+//  RESET
+// ════════════════════════════════════════════════════
+function resetApp() {
+  stop();
+  sentences = []; rawParas = []; lastPid = -1;
+  docCnt.innerHTML = '';
+  docV.style.display   = 'none';
+  dropZ.style.display  = 'block';
+  ctlBar.classList.remove('visible');
+  fInput.value         = '';
+  badge.textContent    = 'Aguardando arquivo';
+  playedSecsBeforePause = 0; playStartTime = null;
+}
+
+// ════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Chrome keep-alive
+setInterval(() => { if (isPlaying && speechSynthesis.paused) speechSynthesis.resume(); }, 5000);
+</script>
+</body>
+</html>
